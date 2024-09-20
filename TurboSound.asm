@@ -7,6 +7,7 @@
         extern  PT3Player_PlaySongB
         extern  PT3Player_DecodeB
         extern  AYREGSB
+        extern  PT3Player_IsDoneA
 
         defc    NTSC_RELOAD=6
 
@@ -22,16 +23,20 @@ _main:
         call    initISR
 
         ld      hl, songA
-        xor     a
+        ld      a, 1                    ; 1 = no loop, 0 = loop
         call    PT3Player_PlaySongA
         ld      hl, songB
-        xor     a
+        ld      a, 1                    ; 1 = no loop, 0 = loop
         call    PT3Player_PlaySongB
 
+		; Wait for player to finish
 loop:
         halt
-        jr      loop
+        call    PT3Player_IsDoneA
+        jr      z, loop
 
+		; Back to interrupt mode 0 before returning to BASIC
+        im      0
         pop     af
         out     (IO_BANK0), a
         ret
@@ -95,6 +100,7 @@ skipping:
         jr      skipFrame
 
 initISR:
+        di
         ; Enable VBLANK interrupt
         ld      a, IRQ_VBLANK
         out     (IO_IRQMASK), a
