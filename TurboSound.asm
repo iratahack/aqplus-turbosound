@@ -1,20 +1,22 @@
         #include    "plus.inc"
         section code_user
 
-        extern  PT3Player_PlaySongA
-        extern  PT3Player_DecodeA
         extern  AYREGSA
-        extern  PT3Player_PlaySongB
-        extern  PT3Player_DecodeB
         extern  AYREGSB
+        extern  PT3Player_DecodeA
+        extern  PT3Player_DecodeB
         extern  PT3Player_IsDoneA
+        extern  PT3Player_PauseA
+        extern  PT3Player_PauseB
+        extern  PT3Player_PlaySongA
+        extern  PT3Player_PlaySongB
 
         defc    NTSC_RELOAD=6
 
         public  _main
 _main:
-		; Map user RAM to BANK0 so we can write
-		; our interrupt vector to $38
+	; Map user RAM to BANK0 so we can write
+	; our interrupt vector to $38
         in      a, (IO_BANK0)           ; Save bank0 mapping
         push    af
         ld      a, USER_RAM             ; Map in USER_RAM
@@ -29,13 +31,26 @@ _main:
         ld      a, 1                    ; 1 = no loop, 0 = loop
         call    PT3Player_PlaySongB
 
-		; Wait for player to finish
+	; Wait for player to finish
 loop:
         halt
         call    PT3Player_IsDoneA
+        jr      nz, finish
+
+	; Check for keyboard input
+        xor     a
+	in	a, (IO_KEYBOARD)
+        inc     a
         jr      z, loop
 
-		; Back to interrupt mode 0 before returning to BASIC
+finish:
+        ; Stop any playing music
+        call    PT3Player_PauseA
+        call    PT3Player_PauseB
+        ; Wait for ISR to process AY regs
+        halt
+
+	; Back to interrupt mode 0 before returning to BASIC
         im      0
         pop     af
         out     (IO_BANK0), a
@@ -66,7 +81,8 @@ ISR:
         push    af
         exx
 
-        ; Drop 1 out of every 6 frames
+        ; Drop 1 out of every 6 frames because we are NTSC
+        ; and this tune was written for PAL (50 vs. 60 frames/sec)
         ld      hl, ntscCount
         dec     (hl)
         jr      z, skipping
@@ -108,7 +124,7 @@ initISR:
         ; Interrupt mode 1 (rst38)
         IM      1
 
-		; Setup the jump vector at $38
+	; Setup the jump vector at $38
         ld      a, $c3                  ; Opcode for JP
         ld      ($38), a
         ld      hl, ISR                 ; Address of ISR
@@ -123,6 +139,6 @@ ntscCount:
 
         section rodata_user
 songA:
-        binary  "Shiru - BallQuest2 (2006)-1.pt3"
+	binary  "Shiru - BallQuest2 (2006)-1.pt3"
 songB:
-        binary  "Shiru - BallQuest2 (2006)-2.pt3"
+	binary  "Shiru - BallQuest2 (2006)-2.pt3"

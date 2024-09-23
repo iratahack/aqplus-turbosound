@@ -32,11 +32,11 @@ Release EQU     '7'
 ;Call MUTE or INIT one more time to mute sound after stopping
 ;playing
 
-PT3Player_DecodeA equ PT3Player_Decode
-PT3Player_IsDoneA equ PT3Player_IsDone
-PT3Player_PauseA equ PT3Player_Pause
+PT3Player_DecodeA   equ PT3Player_Decode
+PT3Player_IsDoneA   equ PT3Player_IsDone
+PT3Player_PauseA    equ PT3Player_Pause
 PT3Player_PlaySongA equ PT3Player_PlaySong
-SETUPA equ SETUP
+SETUPA  equ     SETUP
 
         public  AYREGSA
         public  PT3Player_DecodeA
@@ -113,7 +113,7 @@ PT3Player_Pause:
         LD      H, A
         LD      L, A
         LD      (AYREGSA+AmplA), A
-        LD      (AYREGSA+AmplB), HL      ; Covers channel B & C
+        LD      (AYREGSA+AmplB), HL     ; Covers channel B & C
         EI
         RET
 
