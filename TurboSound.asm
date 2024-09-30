@@ -10,19 +10,19 @@
         extern  PT3Player_PauseB
         extern  PT3Player_PlaySongA
         extern  PT3Player_PlaySongB
+	extern	im1_init
+	extern	add_raster_int
+	extern	getk
 
         defc    NTSC_RELOAD=6
 
         public  _main
 _main:
-	; Map user RAM to BANK0 so we can write
-	; our interrupt vector to $38
-        in      a, (IO_BANK0)           ; Save bank0 mapping
-        push    af
-        ld      a, USER_RAM             ; Map in USER_RAM
-        out     (IO_BANK0), a
-
-        call    initISR
+	call	im1_init
+	ld	hl, ISR
+	push	hl
+	call	add_raster_int
+	pop	af
 
         ld      hl, songA
         ld      a, 1                    ; 1 = no loop, 0 = loop
@@ -31,6 +31,13 @@ _main:
         ld      a, 1                    ; 1 = no loop, 0 = loop
         call    PT3Player_PlaySongB
 
+	; Wait for key release
+waitRelease:
+	halt
+	call	getk
+	or	a
+        jr      nz, waitRelease
+
 	; Wait for player to finish
 loop:
         halt
@@ -38,22 +45,18 @@ loop:
         jr      nz, finish
 
 	; Check for keyboard input
-        xor     a
-	in	a, (IO_KEYBOARD)
-        inc     a
+	call	getk
+	or	a
         jr      z, loop
 
 finish:
         ; Stop any playing music
         call    PT3Player_PauseA
         call    PT3Player_PauseB
-        ; Wait for ISR to process AY regs
-        halt
 
-	; Back to interrupt mode 0 before returning to BASIC
-        im      0
-        pop     af
-        out     (IO_BANK0), a
+        ; Wait for 2 interrupts to ensure we handle the 1/6 skip 
+        halt
+	halt
         ret
 
 ROUT:
@@ -79,7 +82,11 @@ ISR:
         push    af
         ex      af, af'
         push    af
-        exx
+	push	bc
+	push	de
+	push	hl
+	push	ix
+	push	iy
 
         ; Drop 1 out of every 6 frames because we are NTSC
         ; and this tune was written for PAL (50 vs. 60 frames/sec)
@@ -103,7 +110,11 @@ skipFrame:
         ld      a, IRQ_VBLANK
         out     (IO_IRQSTAT), a
 
-        exx
+	pop	iy
+	pop	ix
+	pop	hl
+	pop	de
+	pop	bc
         pop     af
         ex      af, af'
         pop     af
@@ -114,24 +125,6 @@ skipFrame:
 skipping:
         ld      (hl), NTSC_RELOAD
         jr      skipFrame
-
-initISR:
-        di
-        ; Enable VBLANK interrupt
-        ld      a, IRQ_VBLANK
-        out     (IO_IRQMASK), a
-
-        ; Interrupt mode 1 (rst38)
-        IM      1
-
-	; Setup the jump vector at $38
-        ld      a, $c3                  ; Opcode for JP
-        ld      ($38), a
-        ld      hl, ISR                 ; Address of ISR
-        ld      ($39), hl
-
-        ei
-        ret
 
         section data_user
 ntscCount:

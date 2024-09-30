@@ -1,8 +1,7 @@
-PROJECT_NAME=TurboSound
+PROJECT_NAME:=TurboSound
+ASSRC:=$(wildcard *.asm)
 
 .PHONY: all clean run
-
-ASSRC:=$(wildcard *.asm)
 
 all: $(PROJECT_NAME).bin
 
